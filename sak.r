@@ -284,6 +284,23 @@ m2a_df <- mutate(m2_df,
   # create the lower and upper bounds
   select(-std.error) # remove the std.error
 
+mod.2fe <- lm(dat$decision ~ dat$female + 
+              as.factor(dat$yr_started))
+summary(mod.2fe)
+mod.2fe$newse <- vcovHC(mod.2fe, type = c("HC1"))
+coeftest(mod.2fe, mod.2fe$newse)
+m2fe_df <- coef(summary(mod.2fe)) %>% 
+  data.frame() %>% 
+  tibble::rownames_to_column("term") %>%
+  rename(estimate = Estimate, std.error = Std..Error)
+m2fe_df$std.error <- sqrt(diag(mod.2fe$newse))
+m2fe_df
+m2afe_df <- mutate(m2fe_df, 
+                 conf.low = estimate - qnorm(.975) * std.error,
+                 conf.high = estimate + qnorm(.975) * std.error) %>% 
+  # create the lower and upper bounds
+  select(-std.error) # remove the std.error
+
 mod.3 <- lm(dat$decision ~ dat$female + 
               as.factor(dat$yr_started) + 
               as.factor(dat$vacay))
@@ -383,7 +400,7 @@ rownames(estimates) <- c("mod.1", "mod.2", "mod.3")
 par(mfrow=c(1,1))
 var.names <- rev(c("Model 1", "Model 2", "Model 3"))
 par(
-  oma = c(0,0,0,0), # Since it is a single plot, I set the outer margins to zero.
+  oma = c(1,1,1,1), # Since it is a single plot, I set the outer margins to zero.
   mar = c(5,4,5,4) # margins adjusted to reflect changing the locations of the labels
 )
 # create an empty plot for total customization
@@ -396,7 +413,7 @@ est <- as.numeric(rev(estimates[ ,1])) # conveniently store the estimates (minus
 se <- as.numeric(rev(estimates[ ,2])) # conveniently store the std. errors (minus the constant)
 for (i in 1:length(est)) { # loop over a counter the length of the estimate vector
   lines(c(est[i] + 1.96*se[i], est[i] - 1.96*se[i]), c(i, i), lwd = 7, col="#666666")
-  lines(c(est[i] + 1.64*se[i], est[i] - 1.64*se[i]), c(i, i), lwd = 7, col="#333333")
+#  lines(c(est[i] + 1.64*se[i], est[i] - 1.64*se[i]), c(i, i), lwd = 7, col="#333333")
   points(est[i], i, pch = 19, cex = 1.5, col="white") 
   points(est[i], i, pch = 19, cex = 1.25, col="black") 
   text(est[i], i, var.names[i], xpd = T, cex = .9, pos = 3) # add variable labels above the points
@@ -426,7 +443,7 @@ est <- as.numeric(rev(estimates[ ,1])) # conveniently store the estimates (minus
 se <- as.numeric(rev(estimates[ ,2])) # conveniently store the std. errors (minus the constant)
 for (i in 1:length(est)) { # loop over a counter the length of the estimate vector
   lines(c(est[i] + 1.96*se[i], est[i] - 1.96*se[i]), c(i, i), lwd = 7, col="#666666")
-  lines(c(est[i] + 1.64*se[i], est[i] - 1.64*se[i]), c(i, i), lwd = 7, col="#333333")
+#  lines(c(est[i] + 1.64*se[i], est[i] - 1.64*se[i]), c(i, i), lwd = 7, col="#333333")
   points(est[i], i, pch = 19, cex = 1.5, col="white") 
   points(est[i], i, pch = 19, cex = 1.25, col="black") 
   text(est[i], i, var.names[i], xpd = T, cex = .9, pos = 3) # add variable labels above the points
@@ -485,4 +502,4 @@ theta <- function(x, dat, coefficient){
   coef(lm(mod.3 , data = dat[unique(dat$akl_id), ]))[coefficient] }
 res <- jackknife(1:length(dat$akl_id), theta, dat = dat[], coefficient = "dat$female")
 summary(res)
-res
+summary(res$jack.values)
